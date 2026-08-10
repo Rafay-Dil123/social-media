@@ -1,0 +1,23 @@
+# Core
+Django==5.0.6
+djangorestframework==3.15.1
+
+# Auth / security
+PyJWT==2.8.0
+argon2-cffi==23.1.0
+
+# Database
+psycopg[binary]==3.1.19
+
+# CORS
+django-cors-headers==4.3.1
+
+# Config
+python-dotenv==1.0.1
+
+# Production server
+gunicorn==22.0.0
+
+# Dev / testing
+pytest==8.2.2
+pytest-django==4.8.0
