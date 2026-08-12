@@ -33,6 +33,15 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
 
     date_joined = models.DateTimeField(default=timezone.now)
 
+    # Denormalized follow-graph counters, maintained by apps.follows.services.
+    # At scale these graduate to Redis + periodic flush (see Phase 5); direct
+    # F() updates are correct and simple until a user row is actually contended.
+    follower_count = models.BigIntegerField(default=0)
+    following_count = models.BigIntegerField(default=0)
+    # "Celebrity" switch: once followers cross the threshold, this user's posts
+    # are pulled at read time instead of fanned out on write (hybrid feed).
+    is_fanout_on_read = models.BooleanField(default=False)
+
     objects = UserManager()
 
     USERNAME_FIELD = "email"

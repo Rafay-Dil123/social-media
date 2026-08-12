@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     "apps.common",
     "apps.accounts",
     "apps.profiles",
+    "apps.follows",
+    "apps.posts",
 ]
 
 MIDDLEWARE = [
@@ -202,3 +204,28 @@ REFRESH_COOKIE = {
 FRONTEND_ORIGIN = env("FRONTEND_ORIGIN", "http://localhost:5173")
 CORS_ALLOWED_ORIGINS = [FRONTEND_ORIGIN]
 CORS_ALLOW_CREDENTIALS = True
+
+
+# ---------------------------------------------------------------------------
+# Media / object storage (Phase 2 — presigned direct-to-bucket uploads)
+# ---------------------------------------------------------------------------
+# Public base for building media URLs from a stored key at read time.
+MEDIA_CDN_BASE = env("MEDIA_CDN_BASE", "http://localhost:9000/media")
+
+AWS_S3_BUCKET = env("AWS_S3_BUCKET", "media")
+AWS_S3_REGION = env("AWS_S3_REGION", "us-east-1")
+# Set for MinIO/LocalStack (e.g. http://localhost:9000); blank uses real AWS.
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", "")
+
+MEDIA_UPLOAD = {
+    "PRESIGN_EXPIRY_SECONDS": env_int("MEDIA_PRESIGN_EXPIRY", 300),
+    "MAX_IMAGE_BYTES": env_int("MEDIA_MAX_IMAGE_BYTES", 15 * 1024 * 1024),
+    "MAX_VIDEO_BYTES": env_int("MEDIA_MAX_VIDEO_BYTES", 300 * 1024 * 1024),
+    # content_type -> (kind, extension)
+    "ALLOWED_TYPES": {
+        "image/jpeg": ("image", "jpg"),
+        "image/png": ("image", "png"),
+        "image/webp": ("image", "webp"),
+        "video/mp4": ("video", "mp4"),
+    },
+}
