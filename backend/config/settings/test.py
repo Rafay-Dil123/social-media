@@ -22,3 +22,7 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 # Disable throttling noise in tests.
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F405
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}  # noqa: F405
+
+# Run Celery tasks inline (no broker/worker needed in tests).
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True

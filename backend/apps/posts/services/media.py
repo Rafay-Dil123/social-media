@@ -21,6 +21,7 @@ from django.conf import settings
 
 from apps.common.exceptions import NotFound, ValidationError
 from apps.posts.models import PostMedia
+from apps.posts.tasks import process_media_task
 
 _CFG = settings.MEDIA_UPLOAD
 
@@ -107,7 +108,7 @@ def _verify_and_process(media: PostMedia) -> None:
         media.state = PostMedia.State.FAILED
         media.save(update_fields=["state"])
         return
-    process_media(media.id)
+    process_media_task.delay(media.id)
 
 
 def process_media(media_id: int) -> None:

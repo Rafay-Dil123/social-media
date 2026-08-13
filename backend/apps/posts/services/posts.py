@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.common.exceptions import NotFound, PermissionDenied
+from apps.common.models import Outbox
 from ..models import Post, PostMedia
 
 
@@ -15,6 +16,12 @@ def create_post(user, *, caption: str, visibility: int, media_ids: list[int]) ->
     if media_ids:
         _attach_media(user, post, media_ids)
 
+    # Transactional outbox: the intent to fan out commits atomically with the
+    # post, so it can never be lost (Phase 4). The relay publishes it to the queue.
+    Outbox.objects.create(
+        event_type="post.created",
+        payload={"post_id": post.id, "author_id": str(user.id)},
+    )
     return post
 
 

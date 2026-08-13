@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "apps.profiles",
     "apps.follows",
     "apps.posts",
+    "apps.interactions",
 ]
 
 MIDDLEWARE = [
@@ -229,3 +230,23 @@ MEDIA_UPLOAD = {
         "video/mp4": ("video", "mp4"),
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Redis (Phase 3 — live counters; Phase 5 — feed cache)
+# ---------------------------------------------------------------------------
+REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
+
+
+# ---------------------------------------------------------------------------
+# Celery (Phase 4 — async workers behind the transactional outbox)
+# ---------------------------------------------------------------------------
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", "redis://localhost:6379/1")
+CELERY_RESULT_BACKEND = None
+# Redeliver a job if the worker dies mid-run; jobs must be idempotent.
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# Run tasks inline (no broker/worker) when set — handy for local dev and tests.
+CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
+CELERY_TASK_EAGER_PROPAGATES = True

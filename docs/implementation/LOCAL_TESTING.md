@@ -135,7 +135,53 @@ curl -s -X POST http://localhost:8000/api/v1/posts/ "${AUTH[@]}" \
 
 ---
 
-## 3. Endpoint reference (Phase 1 + 2)
+## 2e. Likes (Phase 3 — needs Redis)
+
+Likes use Redis for the live count. Start Redis, then like/unlike:
+
+```bash
+docker run -p 6379:6379 redis:7          # or: brew services start redis
+export REDIS_URL=redis://localhost:6379/0
+
+curl -s -X POST   http://localhost:8000/api/v1/posts/1/like/ "${AUTH[@]}"   # -> {"like_count": 1}
+curl -s -X DELETE http://localhost:8000/api/v1/posts/1/like/ "${AUTH[@]}"   # -> {"like_count": 0}
+```
+
+> The feed's `like_count` reflects the durable mirror, refreshed by the
+> reconciler; the like/unlike responses return the live Redis count immediately.
+> Run a one-off reconcile from the shell:
+> `python manage.py shell -c "from apps.interactions.services import reconcile_like_counts as r; print(r())"`
+
+## 2f. Async pipeline (Phase 4 — outbox + Celery)
+
+Creating a post writes a `post.created` row into the **outbox**. Two ways to
+process it:
+
+**Easiest (dev): eager mode — no broker, no worker.** Tasks run inline.
+
+```bash
+export CELERY_TASK_ALWAYS_EAGER=1
+# create a post; the relay still needs to move the outbox row:
+python manage.py run_relay        # drains outbox -> runs handlers inline
+```
+
+**Realistic: a broker + worker + relay** (three processes):
+
+```bash
+export CELERY_BROKER_URL=redis://localhost:6379/1
+celery -A config worker -l info           # terminal 1: workers
+python manage.py run_relay                # terminal 2: outbox -> queue
+python manage.py runserver                # terminal 3: API
+```
+
+Inspect the outbox directly:
+
+```bash
+python manage.py shell -c "from apps.common.models import Outbox; \
+print(list(Outbox.objects.values('event_type','processed_at')))"
+```
+
+## 3. Endpoint reference
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -146,6 +192,8 @@ curl -s -X POST http://localhost:8000/api/v1/posts/ "${AUTH[@]}" \
 | GET | `/api/v1/feed/` | home feed (cursor: `?cursor=&limit=`) |
 | POST | `/api/v1/users/{uuid}/follow/` | follow |
 | DELETE | `/api/v1/users/{uuid}/follow/` | unfollow |
+| POST | `/api/v1/posts/{id}/like/` | like (returns live count) |
+| DELETE | `/api/v1/posts/{id}/like/` | unlike (returns live count) |
 | POST | `/api/v1/media/upload-init/` | get a presigned upload |
 | POST | `/api/v1/media/{id}/confirm/` | finalize an upload |
 
