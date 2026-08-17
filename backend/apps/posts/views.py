@@ -9,6 +9,7 @@ from apps.common.exceptions import NotFound
 from apps.common.pagination import TimelineCursorPagination
 from . import selectors, services
 from .serializers import PostCreateSerializer, PostReadSerializer
+from .services import hydrate
 
 
 class PostListCreateView(APIView):
@@ -29,10 +30,15 @@ class PostDetailView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, post_id):
+        # Enforce visibility, then serve from the cache (single-flight) with
+        # live counts merged in.
         post = selectors.get_post(request.user, post_id)
         if post is None:
             raise NotFound("Post not found.")
-        return Response(PostReadSerializer(post, context={"request": request}).data)
+        data = hydrate.hydrate_single(post_id)
+        if data is None:
+            raise NotFound("Post not found.")
+        return Response(data)
 
     def delete(self, request, post_id):
         services.delete_post(request.user, post_id)
@@ -44,14 +50,6 @@ class UserPostsView(APIView):
 
     def get(self, request, user_id):
         qs = selectors.list_user_posts(request.user, user_id)
-        return _paginate(qs, request)
-
-
-class HomeFeedView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        qs = selectors.home_feed(request.user)
         return _paginate(qs, request)
 
 

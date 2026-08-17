@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "apps.follows",
     "apps.posts",
     "apps.interactions",
+    "apps.feed",
 ]
 
 MIDDLEWARE = [
@@ -233,9 +234,27 @@ MEDIA_UPLOAD = {
 
 
 # ---------------------------------------------------------------------------
-# Redis (Phase 3 — live counters; Phase 5 — feed cache)
+# Redis (Phase 3 — live counters; Phase 5/6 — feed + post cache)
 # ---------------------------------------------------------------------------
 REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
+
+# Feed fan-out (Phase 5)
+FEED = {
+    "MAX_LEN": env_int("FEED_MAX_LEN", 800),        # entries kept per user ZSET
+    "READ_PAGE": env_int("FEED_READ_PAGE", 20),
+    "CELEB_WINDOW_HOURS": env_int("FEED_CELEB_WINDOW_HOURS", 48),
+    "FANOUT_BATCH": env_int("FEED_FANOUT_BATCH", 5000),
+    "BACKFILL_LIMIT": env_int("FEED_BACKFILL_LIMIT", 50),
+    "EMPTY_MARKER_TTL": env_int("FEED_EMPTY_MARKER_TTL", 300),
+}
+
+# Post hydration cache (Phase 6)
+POST_CACHE = {
+    "TTL_SECONDS": env_int("POST_CACHE_TTL", 600),
+    "TTL_JITTER": env_int("POST_CACHE_TTL_JITTER", 120),
+    "LOCK_TTL": env_int("POST_CACHE_LOCK_TTL", 5),
+    "NEG_TTL": env_int("POST_CACHE_NEG_TTL", 30),
+}
 
 
 # ---------------------------------------------------------------------------

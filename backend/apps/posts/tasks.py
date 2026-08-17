@@ -17,13 +17,3 @@ def process_media_task(media_id: int) -> None:
     from .services import media as media_service
 
     media_service.process_media(media_id)
-
-
-@shared_task(acks_late=True, max_retries=5)
-def on_post_created(post_id: int, author_id: str) -> dict:
-    """Handle a newly created post.
-
-    Phase 5 fans this out into follower feeds. For now it's a no-op hook so the
-    outbox -> relay -> queue pipeline is exercised end to end.
-    """
-    return {"post_id": post_id, "author_id": author_id}

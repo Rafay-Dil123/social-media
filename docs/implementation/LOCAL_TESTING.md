@@ -181,6 +181,39 @@ python manage.py shell -c "from apps.common.models import Outbox; \
 print(list(Outbox.objects.values('event_type','processed_at')))"
 ```
 
+## 2g. Feed fan-out + hydration (Phase 5 + 6 — needs Redis)
+
+The feed is a Redis ZSET of post ids, hydrated from a shared post cache.
+
+```bash
+export REDIS_URL=redis://localhost:6379/0
+export CELERY_TASK_ALWAYS_EAGER=1        # run fan-out inline for local dev
+
+# alice follows bob; bob posts; drain the outbox so fan-out runs:
+curl -s -X POST http://localhost:8000/api/v1/users/<bob-uuid>/follow/ "${AUTH[@]}"
+# (bob) create a post ...
+python manage.py run_relay               # dispatches post.created -> fanout_post
+
+curl -s http://localhost:8000/api/v1/feed/ "${AUTH[@]}"    # -> {"results":[...], "next_cursor":...}
+```
+
+What to observe:
+- A **normal** author's post lands in each follower's `feed:{id}` ZSET (fan-out
+  on write). A **celebrity** (>100k followers, `is_fanout_on_read=True`) is
+  skipped and merged in at read time.
+- If a user's feed key is missing (fresh Redis / new user), the first read
+  **rebuilds** it from the follow graph.
+- Post detail (`GET /posts/{id}/`) serves from the shared `post:{id}` cache with
+  live like counts; deleting a post evicts it.
+
+Inspect the raw feed:
+
+```bash
+redis-cli ZREVRANGE feed:<user-uuid> 0 -1 WITHSCORES
+redis-cli GET post:1        # the cached blob
+redis-cli GET post:1:likes  # the live counter
+```
+
 ## 3. Endpoint reference
 
 | Method | Path | Purpose |

@@ -23,6 +23,7 @@ from django.db.models.functions import Greatest
 from apps.accounts.models import User
 from apps.common.exceptions import ValidationError
 from .models import Follow
+from .signals import user_followed
 
 # Follower count at which a user's posts switch to fan-out-on-read (Phase 5).
 CELEBRITY_THRESHOLD = 100_000
@@ -48,6 +49,10 @@ def follow(follower, following_id) -> Follow:
             following_count=F("following_count") + 1
         )
         _maybe_flip_celebrity(following_id)
+        # Let the feed app backfill the new followee's recent posts (after commit).
+        user_followed.send(
+            sender=Follow, follower_id=follower.id, following_id=following_id
+        )
     return edge
 
 

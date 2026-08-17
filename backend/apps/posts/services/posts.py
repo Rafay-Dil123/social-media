@@ -58,7 +58,10 @@ def delete_post(user, post_id: int) -> None:
         raise PermissionDenied()
     post.deleted_at = timezone.now()
     post.save(update_fields=["deleted_at"])
-    # Phase 6 will also evict the post cache here.
+    # Drop the cached blob so the post disappears from reads immediately.
+    from .hydrate import evict_post
+
+    evict_post(post_id)
 
 
 def _preview_from(m: PostMedia) -> dict:

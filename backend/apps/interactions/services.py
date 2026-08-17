@@ -72,6 +72,38 @@ def like_count(post_id: int) -> int:
     return n
 
 
+def like_counts_bulk(post_ids: list[int]) -> dict[int, int]:
+    """Batched like counts for hydration: one Redis MGET, one grouped DB query
+    to reseed the misses."""
+    if not post_ids:
+        return {}
+    from django.db.models import Count
+    from .models import Like
+
+    r = redis_client()
+    values = r.mget([LIKES_KEY.format(pid) for pid in post_ids])
+    out: dict[int, int] = {}
+    misses: list[int] = []
+    for pid, val in zip(post_ids, values):
+        if val is None:
+            misses.append(pid)
+        else:
+            out[pid] = int(val)
+
+    if misses:
+        rows = (
+            Like.objects.filter(post_id__in=misses, deleted_at__isnull=True)
+            .values("post_id")
+            .annotate(c=Count("id"))
+        )
+        counts = {row["post_id"]: row["c"] for row in rows}
+        for pid in misses:
+            c = counts.get(pid, 0)
+            out[pid] = c
+            r.set(LIKES_KEY.format(pid), c)
+    return out
+
+
 def reconcile_like_counts() -> int:
     """Flush live Redis counts into the durable ``posts.like_count`` mirror.
 
